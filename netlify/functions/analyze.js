@@ -194,18 +194,15 @@ export const handler = async (event) => {
                                       });
 
                                       return {
-                                            statusCode: 200,
-                                            headers,
-                                            body: JSON.stringify({
-                                              analysis: completion.choices[0].message.content
-                                            })
-                                          };
-                                        } catch (error) {
-                                          console.error('Error:', error);
-                                          return {
-                                            statusCode: 500,
-                                            headers,
-                                            body: JSON.stringify({ error: 'Internal Server Error' })
-                                          };
-                                        }
-                                      };
+  statusCode: 200,
+  headers,
+  body: JSON.stringify({
+    choices: [
+      {
+        message: {
+          content: completion.choices[0].message.content
+        }
+      }
+    ]
+  })
+};
