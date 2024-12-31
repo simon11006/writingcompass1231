@@ -1,0 +1,7 @@
+[build]
+  publish = "."
+
+[functions]
+  directory = "netlify/functions"
+  external_node_modules = ["openai"]
+  node_bundler = "esbuild"
