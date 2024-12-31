@@ -193,16 +193,24 @@ export const handler = async (event) => {
                                         max_tokens: 10000
                                       });
 
-                                      return {
-  statusCode: 200,
-  headers,
-  body: JSON.stringify({
-    choices: [
-      {
-        message: {
-          content: completion.choices[0].message.content
-        }
-      }
-    ]
-  })
+                                       return {
+      statusCode: 200,
+      body: JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: completion.choices[0].message.content
+            }
+          }
+        ]
+      })
+    };
+  } catch (error) {
+    console.error('Error:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Internal Server Error' })
+    };
+  }
 };
+                                  
