@@ -190,7 +190,7 @@ export const handler = async (event) => {
                                                                      - 평균 문장 길이: [숫자]자`
                                         }],
                                         temperature: 0.25,
-                                        max_tokens: 5000
+                                        max_tokens: 4000
                                       });
 
                                        return {
