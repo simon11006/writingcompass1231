@@ -1709,23 +1709,35 @@
                                                          * 한 문단에는 너무 많은 내용을 넣지 말고, 비슷한 내용끼리 모아서 써보세요`;
 
     try {
-        const response = await fetch('/api/analyze', {  // URL 경로 수정
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ prompt })
-});
+        // 타임아웃 처리를 위한 AbortController 설정
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 50000); // 50초 타임아웃
+
+        const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ prompt }),
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
-            throw new Error('API 요청 실패');
+            const errorData = await response.json();
+            throw new Error(errorData.error || '분석 중 오류가 발생했습니다.');
         }
 
         const data = await response.json();
         displayAnalysis(data.choices[0].message.content, essayData);
     } catch (error) {
         console.error('분석 오류:', error);
-        alert('분석 중 오류가 발생했습니다. 다시 시도해주세요.');
+        if (error.name === 'AbortError') {
+            alert('분석 시간이 너무 오래 걸립니다. 다시 시도해주세요.');
+        } else {
+            alert(error.message || '분석 중 오류가 발생했습니다. 다시 시도해주세요.');
+        }
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = '분석하기';
