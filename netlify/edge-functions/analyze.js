@@ -1,33 +1,46 @@
 // netlify/edge-functions/analyze.js
-import { Config } from '@netlify/edge-functions';
-import OpenAI from 'openai';
+import { OpenAI } from 'openai';
 
-export default async (request: Request, context: Context) => {
- const openai = new OpenAI({
-   apiKey: context.env.OPENAI_API_KEY
- });
+export default async (request, context) => {
+ // CORS 헤더 설정
+ const corsHeaders = {
+   'Access-Control-Allow-Origin': '*',
+   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+   'Access-Control-Allow-Headers': 'Content-Type',
+   'Content-Type': 'application/json'
+ };
 
- // CORS 처리
+ // OPTIONS 요청 처리
  if (request.method === 'OPTIONS') {
-   return new Response(null, {
-     headers: {
-       'Access-Control-Allow-Origin': '*',
-       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-       'Access-Control-Allow-Headers': 'Content-Type'
-     }
-   });
+   return new Response(null, { headers: corsHeaders });
  }
 
  try {
+   const openai = new OpenAI({
+     apiKey: context.env.OPENAI_API_KEY
+   });
+
    const { prompt } = await request.json();
+
+   if (!prompt) {
+     return new Response(
+       JSON.stringify({ error: 'Prompt is required' }), 
+       { 
+         status: 400,
+         headers: corsHeaders 
+       }
+     );
+   }
 
    const completion = await openai.chat.completions.create({
      model: "gpt-4o-mini",
-     messages: [{ 
-       role: "user", 
-       content: prompt 
-     }],
-     temperature: 0.25, // 일관된 응답을 위해 낮은 temperature 사용
+     messages: [
+       {
+         role: "user",
+         content: prompt
+       }
+     ],
+     temperature: 0.25,
      max_tokens: 5000
    });
 
@@ -39,30 +52,19 @@ export default async (request: Request, context: Context) => {
          }
        }]
      }),
-     {
-       headers: {
-         'Content-Type': 'application/json',
-         'Access-Control-Allow-Origin': '*',
-         'Cache-Control': 'no-cache'
-       }
-     }
+     { headers: corsHeaders }
    );
 
  } catch (error) {
    console.error('Error:', error);
-   
    return new Response(
      JSON.stringify({ 
        error: error.message,
-       details: error.stack 
+       details: process.env.NODE_ENV === 'development' ? error.stack : undefined 
      }), 
      { 
        status: 500,
-       headers: {
-         'Content-Type': 'application/json',
-         'Access-Control-Allow-Origin': '*',
-         'Cache-Control': 'no-cache'
-       }
+       headers: corsHeaders 
      }
    );
  }
