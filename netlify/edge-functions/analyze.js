@@ -37,7 +37,7 @@ export default async (request) => {
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.25,
-        max_tokens: 5000
+        max_tokens: 7000
       })
     });
 
