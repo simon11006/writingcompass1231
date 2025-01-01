@@ -23,7 +23,7 @@ export default async (request) => {
     const numberedParagraphs = paragraphs
       .map((p, index) => `[${index + 1}문단]\n${p}`).join('\n\n');
 
-  const ANALYSIS_PROMPT = '아래 제시된 제목과 내용을 초등학교 5학년 학생의 수준에서 자세하게 분석해. 학생이 제안 내용을 보고 쉽게 고칠 수 있도록 제시해주세요. 구체적인 예시를 들어가며 설명해.:
+  const ANALYSIS_PROMPT = "아래 제시된 제목과 내용을 초등학교 5학년 학생의 수준에서 자세하게 분석해. 학생이 제안 내용을 보고 쉽게 고칠 수 있도록 제시해주세요. 구체적인 예시를 들어가며 설명해.:
 
         제목: "${title}"
         내용: "${numberedParagraphs}"
@@ -168,7 +168,7 @@ export default async (request) => {
                                                          * 글을 크게 [숫자]개의 문단으로 나누어 보세요. 그 이유는: [이유 설명]
                                                          * 각 문단은 이렇게 연결하면 좋아요: [구체적인 연결 방법]
                                                          * 새로운 문단을 시작할 때는 한 줄을 띄우고, '그리고', '하지만'과 같은 연결하는 말로 자연스럽게 이어보세요
-                                                         * 한 문단에는 너무 많은 내용을 넣지 말고, 비슷한 내용끼리 모아서 써보세요';
+                                                         * 한 문단에는 너무 많은 내용을 넣지 말고, 비슷한 내용끼리 모아서 써보세요";
 
         const finalPrompt = ANALYSIS_PROMPT
           .replace("${title}", title)
