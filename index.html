@@ -1716,13 +1716,13 @@
                                                          * 한 문단에는 너무 많은 내용을 넣지 말고, 비슷한 내용끼리 모아서 써보세요`;
 
     try {
-        const response = await fetch('/.netlify/functions/analyze', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ prompt })  // 프롬프트만 전송
-        });
+        const response = await fetch('/api/analyze', {  // URL 경로 수정
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ prompt })
+});
 
         if (!response.ok) {
             throw new Error('API 요청 실패');
