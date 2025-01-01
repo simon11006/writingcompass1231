@@ -1567,16 +1567,16 @@
                 submitBtn.textContent = '분석중...';
             
                 try {
-                    const response = await fetch('/api/analyze', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ 
-                            title: title,
-                            content: content
-                        })
-                    });
+                  const response = await fetch('/.netlify/functions/analyze', {
+                      method: 'POST',
+                      headers: {
+                          'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ 
+                          title: title,
+                          content: content
+                      })
+                  });
             
                     if (!response.ok) {
                         throw new Error('분석 요청 실패');
