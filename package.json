@@ -2,6 +2,7 @@
   "name": "writing-compass",
   "version": "1.0.0",
   "dependencies": {
+    "@netlify/edge-functions": "^2.0.0",
     "openai": "^4.0.1"
   }
 }
