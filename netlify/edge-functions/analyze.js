@@ -171,57 +171,53 @@ export default async (request) => {
                                                          * 한 문단에는 너무 많은 내용을 넣지 말고, 비슷한 내용끼리 모아서 써보세요`;
 
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 50000);
-
-    try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [{ 
-            role: "user", 
-            content: prompt.replace(/\${title}/g, title)
-                          .replace(/\${numberedParagraphs}/g, numberedParagraphs)
-          }],
-          temperature: 0.25,
-          max_tokens: 7000
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-      
-      const completion = await response.json();
-      return new Response(
-        JSON.stringify({
-          choices: [{
-            message: {
-              content: completion.choices[0].message.content
-            }
-          }]
-        }),
-        { headers: corsHeaders }
-      );
-
-    } catch (error) {
-      if (error.name === 'AbortError') {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 50000);
+    
+        try {
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
+            },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              messages: [{ role: "user", content: prompt }],
+              temperature: 0.25,
+              max_tokens: 7000
+            }),
+            signal: controller.signal
+          });
+    
+          clearTimeout(timeoutId);
+          
+          const completion = await response.json();
+          return new Response(
+            JSON.stringify({
+              choices: [{
+                message: {
+                  content: completion.choices[0].message.content
+                }
+              }]
+            }),
+            { headers: corsHeaders }
+          );
+    
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            return new Response(
+              JSON.stringify({ error: '분석 시간이 너무 오래 걸립니다. 다시 시도해주세요.' }), 
+              { status: 408, headers: corsHeaders }
+            );
+          }
+          throw error;
+        }
+      } catch (error) {
+        console.error('Error:', error);
         return new Response(
-          JSON.stringify({ error: '분석 시간이 너무 오래 걸립니다. 다시 시도해주세요.' }), 
-          { status: 408, headers: corsHeaders }
+          JSON.stringify({ error: error.message }), 
+          { status: 500, headers: corsHeaders }
         );
       }
-      throw error;
-    }
-  } catch (error) {
-    console.error('Error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }), 
-      { status: 500, headers: corsHeaders }
-    );
-  }
-};
+    };
