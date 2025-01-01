@@ -1568,8 +1568,14 @@
         name: document.getElementById('name').value.trim()
     };
 
-    const paragraphs = essayData.content.split(/\n+/).filter(p => p.trim());
-    const numberedParagraphs = paragraphs.map((p, index) => `[${index + 1}문단]\n${p}`).join('\n\n');
+    const paragraphs = essayData.content
+    .split(/\n/) // 단일 줄바꿈(\n)으로 분리
+    .filter(p => p.trim()); // 빈 줄 제거
+
+// 문단 번호 붙이기
+const numberedParagraphs = paragraphs
+    .map((p, index) => `[${index + 1}문단]\n${p.trim()}`)
+    .join('\n\n');
 
     // 프롬프트를 프론트엔드에서 구성
     const prompt = `아래 제시된 제목과 내용을 초등학교 5학년 학생의 수준에서 자세하게 분석해. 학생이 제안 내용을 보고 쉽게 고칠 수 있도록 제시해주세요. 구체적인 예시를 들어가며 설명해.:
