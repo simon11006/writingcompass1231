@@ -182,7 +182,7 @@ export default async (request) => {
               model: "gpt-4o-mini",
               messages: [{ role: "user", content: finalPrompt }],
               temperature: 0.25,
-              max_tokens: 8000
+              max_tokens: 6000
             }),
             signal: controller.signal
           });
