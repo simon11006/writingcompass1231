@@ -5,3 +5,11 @@
   directory = "netlify/functions"
   external_node_modules = ["openai"]
   node_bundler = "esbuild"
+
+[[edge_functions]]
+  path = "/api/analyze"
+  function = "analyze"
+
+[dev]
+  functions = "netlify/functions"
+  edge_functions = "netlify/edge-functions"
