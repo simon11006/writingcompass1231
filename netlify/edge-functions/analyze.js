@@ -164,57 +164,65 @@ export default async (request) => {
                                                          * 새로운 문단을 시작할 때는 한 줄을 띄우고, '그리고', '하지만'과 같은 연결하는 말로 자연스럽게 이어보세요
                                                          * 한 문단에는 너무 많은 내용을 넣지 말고, 비슷한 내용끼리 모아서 써보세요`;
 
-        const finalPrompt = ANALYSIS_PROMPT
-          .replace("${title}", title)
-          .replace("${numberedParagraphs}", numberedParagraphs);
+const finalPrompt = ANALYSIS_PROMPT
+     .replace("${title}", title)
+     .replace("${numberedParagraphs}", numberedParagraphs);
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 50000); // 50초 타임아웃
-        
-        try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
-                },
-                body: JSON.stringify({
-                    model: "gpt-4o-mini", 
-                    messages: [{ role: "user", content: finalPrompt }], 
-                    temperature: 0.25,
-                    max_tokens: 4000
-                }),
-                signal: controller.signal
-            });
-    
-          clearTimeout(timeoutId);
-          
-          const completion = await response.json();
-          return new Response(
-            JSON.stringify({
-              choices: [{
-                message: {
-                  content: completion.choices[0].message.content
-                }
-              }]
-            }),
-            { headers: corsHeaders }
-          );
-    
-      } catch (error) {
-          if (error.name === 'AbortError') {
-              return new Response(
-                  JSON.stringify({ error: '분석 시간이 초과되었습니다. 다시 시도해주세요.' }), 
-                  { status: 408, headers: corsHeaders }
-              );
-          }
-          throw error;
-      }
-      } catch (error) {
-        console.error('Error:', error);
-        return new Response(
-          JSON.stringify({ error: error.message }), 
-          { status: 500, headers: corsHeaders }
-        );
-      }
-    };
+   const controller = new AbortController();
+   const timeoutId = setTimeout(() => controller.abort(), 50000);
+
+   try {
+     const response = await fetch('https://api.openai.com/v1/chat/completions', {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json',
+         'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
+       },
+       body: JSON.stringify({
+         model: "gpt-4o-mini",
+         messages: [{ role: "user", content: finalPrompt }],
+         temperature: 0.25,
+         max_tokens: 4000
+       }),
+       signal: controller.signal
+     });
+
+     if (!response.ok) {
+       const errorData = await response.json().catch(() => ({}));
+       throw new Error(`API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+     }
+
+     clearTimeout(timeoutId);
+     
+     const completion = await response.json();
+     return new Response(
+       JSON.stringify({
+         choices: [{
+           message: {
+             content: completion.choices[0].message.content
+           }
+         }]
+       }),
+       { headers: corsHeaders }
+     );
+
+   } catch (error) {
+     if (error.name === 'AbortError') {
+       return new Response(
+         JSON.stringify({ error: '분석 시간이 초과되었습니다. 다시 시도해주세요.' }), 
+         { status: 408, headers: corsHeaders }
+       );
+     }
+     throw error;
+   }
+ } catch (error) {
+   console.error('Error:', error);
+   return new Response(
+     JSON.stringify({ 
+       error: error.message,
+       details: error.stack 
+     }), 
+     { status: 500, headers: corsHeaders }
+   );
+ }
+};
