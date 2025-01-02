@@ -1,27 +1,27 @@
 export default async (request) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json'
-  };
+ const corsHeaders = {
+   'Access-Control-Allow-Origin': '*',
+   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+   'Access-Control-Allow-Headers': 'Content-Type',
+   'Content-Type': 'application/json'
+ };
 
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+ if (request.method === 'OPTIONS') {
+   return new Response(null, { headers: corsHeaders });
+ }
 
-  try {
-    const { title, content } = await request.json();
-    if (!title || !content) {
-      return new Response(
-        JSON.stringify({ error: 'Title and content are required' }), 
-        { status: 400, headers: corsHeaders }
-      );
-    }
+ try {
+   const { title, content } = await request.json();
+   if (!title || !content) {
+     return new Response(
+       JSON.stringify({ error: 'Title and content are required' }), 
+       { status: 400, headers: corsHeaders }
+     );
+   }
 
-    const paragraphs = content.split('\n').filter(p => p.trim());
-    const numberedParagraphs = paragraphs
-      .map((p, index) => `[${index + 1}문단]\n${p}`).join('\n\n');
+   const paragraphs = content.split('\n').filter(p => p.trim());
+   const numberedParagraphs = paragraphs
+     .map((p, index) => `[${index + 1}문단]\n${p}`).join('\n\n');
 
   const ANALYSIS_PROMPT = `아래 제시된 제목과 내용을 초등학교 5학년 학생의 수준에서 자세하게 분석해. 학생이 제안 내용을 보고 쉽게 고칠 수 있도록 제시해주세요. 구체적인 예시를 들어가며 설명해.:
 
@@ -172,61 +172,44 @@ const finalPrompt = ANALYSIS_PROMPT
    const timeoutId = setTimeout(() => controller.abort(), 45000);
 
    try {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: finalPrompt }],
-      temperature: 0.25,
-      max_tokens: 4000
-    }),
-    signal: controller.signal
-  });
+     const response = await fetch('https://api.openai.com/v1/chat/completions', {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json',
+         'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
+       },
+       body: JSON.stringify({
+         model: "gpt-4o-mini",
+         messages: [{ role: "user", content: finalPrompt }],
+         temperature: 0.25,
+         max_tokens: 4000
+       }),
+       signal: controller.signal
+     });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`API error: ${error.error?.message || response.statusText}`);
-  }
+     clearTimeout(timeoutId);
 
-  const completion = await response.json();
-  if (!completion.choices?.[0]?.message?.content) {
-    throw new Error('Invalid response format');
-  }
+     if (!response.ok) {
+       const errorData = await response.json().catch(() => ({}));
+       throw new Error(`API error: ${errorData.error?.message || response.statusText}`);
+     }
 
-  return new Response(
-    JSON.stringify({
-      choices: [{
-        message: {
-          content: completion.choices[0].message.content
-        }
-      }]
-    }),
-    { headers: corsHeaders }
-  );
-} catch (error) {
-  if (error.name === 'AbortError') {
-    return new Response(
-      JSON.stringify({ error: '분석 시간이 초과되었습니다.' }), 
-      { status: 408, headers: corsHeaders }
-    );
-  }
-  return new Response(
-    JSON.stringify({ 
-      error: error.message,
-      type: error.name
-    }),
-    { status: 500, headers: corsHeaders }
-  );
-}
+     const completion = await response.json();
+     return new Response(
+       JSON.stringify({
+         choices: [{
+           message: {
+             content: completion.choices[0].message.content
+           }
+         }]
+       }),
+       { headers: corsHeaders }
+     );
 
    } catch (error) {
      if (error.name === 'AbortError') {
        return new Response(
-         JSON.stringify({ error: '분석 시간이 초과되었습니다. 다시 시도해주세요.' }), 
+         JSON.stringify({ error: '분석 시간이 초과되었습니다.' }), 
          { status: 408, headers: corsHeaders }
        );
      }
