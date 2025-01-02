@@ -169,42 +169,59 @@ const finalPrompt = ANALYSIS_PROMPT
      .replace("${numberedParagraphs}", numberedParagraphs);
 
    const controller = new AbortController();
-   const timeoutId = setTimeout(() => controller.abort(), 50000);
+   const timeoutId = setTimeout(() => controller.abort(), 45000);
 
    try {
-     const response = await fetch('https://api.openai.com/v1/chat/completions', {
-       method: 'POST',
-       headers: {
-         'Content-Type': 'application/json',
-         'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
-       },
-       body: JSON.stringify({
-         model: "gpt-4o-mini",
-         messages: [{ role: "user", content: finalPrompt }],
-         temperature: 0.25,
-         max_tokens: 4000
-       }),
-       signal: controller.signal
-     });
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: finalPrompt }],
+      temperature: 0.25,
+      max_tokens: 4000
+    }),
+    signal: controller.signal
+  });
 
-     if (!response.ok) {
-       const errorData = await response.json().catch(() => ({}));
-       throw new Error(`API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
-     }
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`API error: ${error.error?.message || response.statusText}`);
+  }
 
-     clearTimeout(timeoutId);
-     
-     const completion = await response.json();
-     return new Response(
-       JSON.stringify({
-         choices: [{
-           message: {
-             content: completion.choices[0].message.content
-           }
-         }]
-       }),
-       { headers: corsHeaders }
-     );
+  const completion = await response.json();
+  if (!completion.choices?.[0]?.message?.content) {
+    throw new Error('Invalid response format');
+  }
+
+  return new Response(
+    JSON.stringify({
+      choices: [{
+        message: {
+          content: completion.choices[0].message.content
+        }
+      }]
+    }),
+    { headers: corsHeaders }
+  );
+} catch (error) {
+  if (error.name === 'AbortError') {
+    return new Response(
+      JSON.stringify({ error: '분석 시간이 초과되었습니다.' }), 
+      { status: 408, headers: corsHeaders }
+    );
+  }
+  return new Response(
+    JSON.stringify({ 
+      error: error.message,
+      type: error.name
+    }),
+    { status: 500, headers: corsHeaders }
+  );
+}
 
    } catch (error) {
      if (error.name === 'AbortError') {
