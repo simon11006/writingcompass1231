@@ -1,42 +1,43 @@
 export default async (request) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json'
-  };
+ const corsHeaders = {
+   'Access-Control-Allow-Origin': '*',
+   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+   'Access-Control-Allow-Headers': 'Content-Type',
+   'Content-Type': 'application/json'
+ };
 
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+ if (request.method === 'OPTIONS') {
+   return new Response(null, { headers: corsHeaders });
+ }
 
-  try {
-    const { title, content } = await request.json();
-    if (!title || !content) {
-      return new Response(
-        JSON.stringify({ error: '제목과 내용을 입력해주세요.' }), 
-        { status: 400, headers: corsHeaders }
-      );
-    }
+ try {
+   const { title, content } = await request.json();
+   if (!title || !content) {
+     return new Response(
+       JSON.stringify({ error: '제목과 내용을 입력해주세요.' }), 
+       { status: 400, headers: corsHeaders }
+     );
+   }
 
-    // 문단 처리
-    const paragraphs = content.split('\n').filter(p => p.trim());
-    const numberedParagraphs = paragraphs
-      .map((p, index) => `[${index + 1}문단]\n${p}`).join('\n\n');
+   const paragraphs = content.split('\n').filter(p => p.trim());
+   const numberedParagraphs = paragraphs
+     .map((p, index) => `[${index + 1}문단]\n${p}`).join('\n\n');
 
-    // API 요청
-    try {
-      const apiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
-        },
-        body: JSON.stringify({
-          model: "gpt-4",
-          messages: [{ 
-            role: "user", 
-            content: `아래 제시된 제목과 내용을 초등학교 5학년 학생의 수준에서 자세하게 분석해. 학생이 제안 내용을 보고 쉽게 고칠 수 있도록 제시해주세요. 구체적인 예시를 들어가며 설명해.:
+   const controller = new AbortController();
+   const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+   try {
+     const apiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json',
+         'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
+       },
+       body: JSON.stringify({
+         model: "gpt-4o-mini",
+         messages: [{ 
+           role: "user", 
+           content: `아래 제시된 제목과 내용을 초등학교 5학년 학생의 수준에서 자세하게 분석해. 학생이 제안 내용을 보고 쉽게 고칠 수 있도록 제시해주세요. 구체적인 예시를 들어가며 설명해.:
 
         제목: "${title}"
         내용: "${numberedParagraphs}"
@@ -180,32 +181,44 @@ export default async (request) => {
 }],
           temperature: 0.3,
           max_tokens: 3500
-        })
-      });
+}),
+       signal: controller.signal
+     });
 
-      const completion = await apiResponse.json();
-      if (!apiResponse.ok) {
-        throw new Error(completion.error?.message || '분석 처리 중 오류가 발생했습니다.');
-      }
+     clearTimeout(timeoutId);
 
-      return new Response(
-        JSON.stringify({ choices: [{ message: { content: completion.choices[0].message.content } }] }),
-        { headers: corsHeaders }
-      );
+     if (!apiResponse.ok) {
+       const errorText = await apiResponse.text();
+       console.error('API Response Error:', errorText);
+       throw new Error(`API 오류 (${apiResponse.status}): ${errorText}`);
+     }
 
-    } catch (error) {
-      console.error('API Error:', error);
-      return new Response(
-        JSON.stringify({ error: '분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' }),
-        { status: 500, headers: corsHeaders }
-      );
-    }
+     const completion = await apiResponse.json();
 
-  } catch (error) {
-    console.error('Request Error:', error);
-    return new Response(
-      JSON.stringify({ error: '요청 처리 중 오류가 발생했습니다.' }),
-      { status: 500, headers: corsHeaders }
-    );
-  }
+     return new Response(
+       JSON.stringify({ choices: [{ message: { content: completion.choices[0].message.content } }] }),
+       { headers: corsHeaders }
+     );
+
+   } catch (error) {
+     console.error('API Error:', error);
+     if (error.name === 'AbortError') {
+       return new Response(
+         JSON.stringify({ error: '시간이 초과되었습니다. 다시 시도해주세요.' }),
+         { status: 408, headers: corsHeaders }
+       );
+     }
+     return new Response(
+       JSON.stringify({ error: '분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' }),
+       { status: 500, headers: corsHeaders }
+     );
+   }
+
+ } catch (error) {
+   console.error('Request Error:', error);
+   return new Response(
+     JSON.stringify({ error: '요청 처리 중 오류가 발생했습니다.' }),
+     { status: 500, headers: corsHeaders }
+   );
+ }
 };
