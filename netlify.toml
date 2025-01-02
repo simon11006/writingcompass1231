@@ -7,8 +7,8 @@
   node_bundler = "esbuild"
 
 [[edge_functions]]
-  path = "/api/analyze"
   function = "analyze"
+  path = "/api/analyze"
 
 [dev]
   functions = "netlify/functions"
