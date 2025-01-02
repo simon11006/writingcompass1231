@@ -169,7 +169,7 @@ export default async (request) => {
           .replace("${numberedParagraphs}", numberedParagraphs);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 45000); // 45초 타임아웃
+        const timeoutId = setTimeout(() => controller.abort(), 50000); // 50초 타임아웃
         
         try {
             const response = await fetch('https://api.openai.com/v1/chat/completions', {
