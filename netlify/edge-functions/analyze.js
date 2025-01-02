@@ -171,46 +171,58 @@ const finalPrompt = ANALYSIS_PROMPT
    const controller = new AbortController();
    const timeoutId = setTimeout(() => controller.abort(), 45000);
 
-   try {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: finalPrompt }],
-      temperature: 0.25,
-      max_tokens: 4000
-    }),
-    signal: controller.signal
-  });
+try {
+     const response = await fetch('https://api.openai.com/v1/chat/completions', {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json',
+         'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
+       },
+       body: JSON.stringify({
+         model: "gpt-4o-mini",
+         messages: [{ role: "user", content: finalPrompt }],
+         temperature: 0.25,
+         max_tokens: 4000
+       }),
+       signal: controller.signal
+     });
 
-  clearTimeout(timeoutId);
+     clearTimeout(timeoutId);
 
-  const responseData = await response.json();
-  if (!response.ok) {
-    throw new Error(`API error: ${responseData.error?.message || 'Unknown error'}`);
-  }
+     if (!response.ok) {
+       const errorData = await response.json().catch(() => ({}));
+       throw new Error(`API error: ${errorData.error?.message || response.statusText}`);
+     }
 
-  if (!responseData.choices?.[0]?.message?.content) {
-    throw new Error('Invalid response format');
-  }
+     const completion = await response.json();
+     return new Response(
+       JSON.stringify({
+         choices: [{
+           message: {
+             content: completion.choices[0].message.content
+           }
+         }]
+       }),
+       { headers: corsHeaders }
+     );
 
-  return new Response(
-    JSON.stringify({
-      choices: [{
-        message: { content: responseData.choices[0].message.content }
-      }]
-    }),
-    { headers: corsHeaders }
-  );
-
-} catch (error) {
-  console.error('API Error:', error);
-  return new Response(
-    JSON.stringify({ error: error.message }), 
-    { status: error.name === 'AbortError' ? 408 : 500, headers: corsHeaders }
-  );
-}
+   } catch (error) {
+     if (error.name === 'AbortError') {
+       return new Response(
+         JSON.stringify({ error: '분석 시간이 초과되었습니다.' }), 
+         { status: 408, headers: corsHeaders }
+       );
+     }
+     throw error;
+   }
+ } catch (error) {
+   console.error('Error:', error);
+   return new Response(
+     JSON.stringify({ 
+       error: error.message,
+       details: error.stack 
+     }), 
+     { status: 500, headers: corsHeaders }
+   );
+ }
+};
