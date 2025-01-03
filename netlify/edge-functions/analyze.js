@@ -11,9 +11,12 @@ export default async (request) => {
   }
 
   try {
-    const { messages } = await request.json();
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // 클라이언트로부터 메시지 받기
+    const requestData = await request.json();
+    const { messages } = requestData;
+
+    // OpenAI API 호출
+    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -21,24 +24,31 @@ export default async (request) => {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: messages,
+        messages,
         temperature: 0.3,
-        max_tokens: 3500
+        max_tokens: 3000
       })
     });
 
-    if (!response.ok) {
-      throw new Error('API request failed');
-    }
+    // OpenAI 응답 처리
+    const openaiData = await openaiResponse.json();
 
-    const data = await response.json();
-    return new Response(JSON.stringify(data), { headers: corsHeaders });
-    
+    // 성공 응답 반환
+    return new Response(JSON.stringify(openaiData), { 
+      status: 200, 
+      headers: corsHeaders 
+    });
+
   } catch (error) {
-    console.error('Error:', error);
-    return new Response(
-      JSON.stringify({ error: '분석 중 오류가 발생했습니다. 다시 시도해주세요.' }), 
-      { status: 500, headers: corsHeaders }
-    );
+    console.error('Error details:', error);
+    
+    // 에러 응답 반환
+    return new Response(JSON.stringify({
+      error: true,
+      message: error.message || '서버 오류가 발생했습니다.'
+    }), {
+      status: 500,
+      headers: corsHeaders
+    });
   }
 };
