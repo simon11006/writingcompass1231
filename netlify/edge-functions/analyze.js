@@ -1,5 +1,4 @@
 export default async (request) => {
-  // CORS 헤더 설정
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -7,16 +6,13 @@ export default async (request) => {
     'Content-Type': 'application/json'
   };
 
-  // OPTIONS 요청 처리
   if (request.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // 요청 데이터 파싱
     const { title, content } = await request.json();
     
-    // 입력값 검증
     if (!title || !content) {
       return new Response(
         JSON.stringify({ error: '제목과 내용을 입력해주세요.' }), 
@@ -24,25 +20,22 @@ export default async (request) => {
       );
     }
 
-    // 글자 수 제한 체크 (선택사항)
-    if (content.length > 10000) {
+    // 2000자 제한
+    if (content.length > 2000) {
       return new Response(
-        JSON.stringify({ error: '글자 수가 너무 많습니다. 10,000자 이하로 작성해주세요.' }),
+        JSON.stringify({ error: '글자 수가 너무 많습니다. 2,000자 이하로 작성해주세요.' }),
         { status: 400, headers: corsHeaders }
       );
     }
 
-    // 문단 분리 및 번호 매기기
     const paragraphs = content.split('\n').filter(p => p.trim());
     const numberedParagraphs = paragraphs
       .map((p, index) => `[${index + 1}문단]\n${p}`).join('\n\n');
 
-    // AbortController 설정
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90초로 증가
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25초로 감소
 
     try {
-      // OpenAI API 호출
       const apiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -195,8 +188,8 @@ export default async (request) => {
                                                          * 한 문단에는 너무 많은 내용을 넣지 말고, 비슷한 내용끼리 모아서 써보세요`
 
 }],
-          temperature: 0.3,
-          max_tokens: 3500
+          temperature: 0.25,
+          max_tokens: 3000 // 토큰 수 감소
         }),
         signal: controller.signal
       });
@@ -204,21 +197,13 @@ export default async (request) => {
       clearTimeout(timeoutId);
 
       if (!apiResponse.ok) {
-        const errorText = await apiResponse.text();
-        console.error('API Response Error:', errorText);
-        throw new Error(`API 오류 (${apiResponse.status}): ${errorText}`);
+        throw new Error(`API 오류 (${apiResponse.status})`);
       }
 
       const completion = await apiResponse.json();
       
       return new Response(
-        JSON.stringify({ 
-          choices: [{ 
-            message: { 
-              content: completion.choices[0].message.content 
-            } 
-          }] 
-        }),
+        JSON.stringify({ choices: [{ message: { content: completion.choices[0].message.content } }] }),
         { headers: corsHeaders }
       );
 
@@ -227,19 +212,13 @@ export default async (request) => {
       
       if (error.name === 'AbortError') {
         return new Response(
-          JSON.stringify({ 
-            error: '시간이 초과되었습니다. 다시 시도해주세요.',
-            details: '서버 처리 시간이 너무 길어졌습니다.'
-          }),
+          JSON.stringify({ error: '분석 시간이 초과되었습니다. 조금 더 짧은 글로 다시 시도해주세요.' }),
           { status: 408, headers: corsHeaders }
         );
       }
 
       return new Response(
-        JSON.stringify({ 
-          error: '분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
-          details: error.message
-        }),
+        JSON.stringify({ error: '분석 중 오류가 발생했습니다. 다시 시도해주세요.' }),
         { status: 500, headers: corsHeaders }
       );
     }
@@ -247,10 +226,7 @@ export default async (request) => {
   } catch (error) {
     console.error('Request Error:', error);
     return new Response(
-      JSON.stringify({ 
-        error: '요청 처리 중 오류가 발생했습니다.',
-        details: error.message 
-      }),
+      JSON.stringify({ error: '요청을 처리할 수 없습니다.' }),
       { status: 500, headers: corsHeaders }
     );
   }
