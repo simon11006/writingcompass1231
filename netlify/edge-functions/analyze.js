@@ -22,7 +22,7 @@ export default async (request) => {
         model: "gpt-4o-mini",
         messages: body.messages,
         temperature: 0.3,
-        max_tokens: 3500
+        max_tokens: 2500
       })
     });
 
