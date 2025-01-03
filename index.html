@@ -1555,10 +1555,16 @@
             });
 
 submitBtn.addEventListener('click', async function() {
-    const title = document.getElementById('title').value.trim();
-    const content = document.getElementById('content').value.trim();
+    const essayData = {
+        title: document.getElementById('title').value.trim(),
+        content: document.getElementById('content').value.trim(),
+        grade: document.getElementById('grade').value.trim(),
+        class: document.getElementById('class').value.trim(),
+        number: document.getElementById('number').value.trim(),
+        name: document.getElementById('name').value.trim()
+    };
     
-    if (!title || !content) {
+    if (!essayData.title || !essayData.content) {
         alert('제목과 내용을 모두 입력해주세요.');
         return;
     }
@@ -1567,7 +1573,7 @@ submitBtn.addEventListener('click', async function() {
     submitBtn.textContent = '분석중...';
 
     try {
-        const paragraphs = content.split('\n').filter(p => p.trim());
+        const paragraphs = essayData.content.split('\n').filter(p => p.trim());
         const numberedParagraphs = paragraphs
             .map((p, index) => `[${index + 1}문단]\n${p}`).join('\n\n');
 
