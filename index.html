@@ -1722,35 +1722,29 @@ submitBtn.addEventListener('click', async function() {
 
 }];
 
-        const response = await fetch('/api/analyze', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ messages })
-        });
-
-        if (!response.ok) {
-            throw new Error('분석 요청 실패');
-        }
-
-        const data = await response.json();
-        displayAnalysis(data.choices[0].message.content, {
-            title,
-            content,
-            grade: document.getElementById('grade').value.trim(),
-            class: document.getElementById('class').value.trim(),
-            number: document.getElementById('number').value.trim(),
-            name: document.getElementById('name').value.trim()
-        });
-    } catch (error) {
-        console.error('분석 오류:', error);
-        alert('분석 중 오류가 발생했습니다. 다시 시도해주세요.');
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = '분석하기';
-    }
-});
+                   const response = await fetch('/api/analyze', {
+                              method: 'POST',
+                              headers: {
+                                  'Content-Type': 'application/json'
+                              },
+                              body: JSON.stringify({ messages })
+                          });
+                  
+                          if (!response.ok) {
+                              throw new Error('분석 요청 실패');
+                          }
+                  
+                          const data = await response.json();
+                          displayAnalysis(data.choices[0].message.content, essayData);
+                          
+                      } catch (error) {
+                          console.error('분석 오류:', error);
+                          alert('분석 중 오류가 발생했습니다. 다시 시도해주세요.');
+                      } finally {
+                          submitBtn.disabled = false;
+                          submitBtn.textContent = '분석하기';
+                      }
+                  });
 
            
                                     });
