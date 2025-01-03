@@ -1,42 +1,58 @@
 export default async (request) => {
- const corsHeaders = {
-   'Access-Control-Allow-Origin': '*',
-   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-   'Access-Control-Allow-Headers': 'Content-Type',
-   'Content-Type': 'application/json'
- };
+  // CORS 헤더 설정
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json'
+  };
 
- if (request.method === 'OPTIONS') {
-   return new Response(null, { headers: corsHeaders });
- }
+  // OPTIONS 요청 처리
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
 
- try {
-   const { title, content } = await request.json();
-   if (!title || !content) {
-     return new Response(
-       JSON.stringify({ error: '제목과 내용을 입력해주세요.' }), 
-       { status: 400, headers: corsHeaders }
-     );
-   }
+  try {
+    // 요청 데이터 파싱
+    const { title, content } = await request.json();
+    
+    // 입력값 검증
+    if (!title || !content) {
+      return new Response(
+        JSON.stringify({ error: '제목과 내용을 입력해주세요.' }), 
+        { status: 400, headers: corsHeaders }
+      );
+    }
 
-   const paragraphs = content.split('\n').filter(p => p.trim());
-   const numberedParagraphs = paragraphs
-     .map((p, index) => `[${index + 1}문단]\n${p}`).join('\n\n');
+    // 글자 수 제한 체크 (선택사항)
+    if (content.length > 10000) {
+      return new Response(
+        JSON.stringify({ error: '글자 수가 너무 많습니다. 10,000자 이하로 작성해주세요.' }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
 
-   const controller = new AbortController();
-   const timeoutId = setTimeout(() => controller.abort(), 45000);
+    // 문단 분리 및 번호 매기기
+    const paragraphs = content.split('\n').filter(p => p.trim());
+    const numberedParagraphs = paragraphs
+      .map((p, index) => `[${index + 1}문단]\n${p}`).join('\n\n');
 
-   try {
-     const apiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-       method: 'POST',
-       headers: {
-         'Content-Type': 'application/json',
-         'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
-       },
-       body: JSON.stringify({
-         model: "gpt-4o-mini",
-         messages: [{ 
-           role: "user", 
+    // AbortController 설정
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90초로 증가
+
+    try {
+      // OpenAI API 호출
+      const apiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [{ 
+            role: "user", 
            content: `아래 제시된 제목과 내용을 초등학교 5학년 학생의 수준에서 자세하게 분석해. 학생이 제안 내용을 보고 쉽게 고칠 수 있도록 제시해주세요. 구체적인 예시를 들어가며 설명해.:
 
         제목: "${title}"
@@ -181,44 +197,61 @@ export default async (request) => {
 }],
           temperature: 0.3,
           max_tokens: 3500
-}),
-       signal: controller.signal
-     });
+        }),
+        signal: controller.signal
+      });
 
-     clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
-     if (!apiResponse.ok) {
-       const errorText = await apiResponse.text();
-       console.error('API Response Error:', errorText);
-       throw new Error(`API 오류 (${apiResponse.status}): ${errorText}`);
-     }
+      if (!apiResponse.ok) {
+        const errorText = await apiResponse.text();
+        console.error('API Response Error:', errorText);
+        throw new Error(`API 오류 (${apiResponse.status}): ${errorText}`);
+      }
 
-     const completion = await apiResponse.json();
+      const completion = await apiResponse.json();
+      
+      return new Response(
+        JSON.stringify({ 
+          choices: [{ 
+            message: { 
+              content: completion.choices[0].message.content 
+            } 
+          }] 
+        }),
+        { headers: corsHeaders }
+      );
 
-     return new Response(
-       JSON.stringify({ choices: [{ message: { content: completion.choices[0].message.content } }] }),
-       { headers: corsHeaders }
-     );
+    } catch (error) {
+      console.error('API Error:', error);
+      
+      if (error.name === 'AbortError') {
+        return new Response(
+          JSON.stringify({ 
+            error: '시간이 초과되었습니다. 다시 시도해주세요.',
+            details: '서버 처리 시간이 너무 길어졌습니다.'
+          }),
+          { status: 408, headers: corsHeaders }
+        );
+      }
 
-   } catch (error) {
-     console.error('API Error:', error);
-     if (error.name === 'AbortError') {
-       return new Response(
-         JSON.stringify({ error: '시간이 초과되었습니다. 다시 시도해주세요.' }),
-         { status: 408, headers: corsHeaders }
-       );
-     }
-     return new Response(
-       JSON.stringify({ error: '분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' }),
-       { status: 500, headers: corsHeaders }
-     );
-   }
+      return new Response(
+        JSON.stringify({ 
+          error: '분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+          details: error.message
+        }),
+        { status: 500, headers: corsHeaders }
+      );
+    }
 
- } catch (error) {
-   console.error('Request Error:', error);
-   return new Response(
-     JSON.stringify({ error: '요청 처리 중 오류가 발생했습니다.' }),
-     { status: 500, headers: corsHeaders }
-   );
- }
+  } catch (error) {
+    console.error('Request Error:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: '요청 처리 중 오류가 발생했습니다.',
+        details: error.message 
+      }),
+      { status: 500, headers: corsHeaders }
+    );
+  }
 };
