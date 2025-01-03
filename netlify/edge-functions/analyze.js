@@ -6,65 +6,74 @@ export default async (request) => {
     'Content-Type': 'application/json'
   };
 
-  // OPTIONS 요청 처리
   if (request.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // POST 요청이 아닌 경우 처리
-  if (request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
-      status: 405, 
-      headers: corsHeaders 
-    });
-  }
-
   try {
-    // 요청 데이터 파싱
-    const requestData = await request.json();
-    if (!requestData.messages) {
-      throw new Error('Messages are required');
+    // 1. 요청 데이터 검증
+    const body = await request.json();
+    if (!body || !body.messages || !Array.isArray(body.messages)) {
+      return new Response(JSON.stringify({ error: 'Invalid request format' }), {
+        status: 400,
+        headers: corsHeaders
+      });
     }
 
-    console.log('Received messages:', requestData.messages); // 디버깅용 로그
+    // 2. API 요청 설정
+    const apiRequestBody = {
+      model: "gpt-4o-mini",
+      messages: body.messages,
+      temperature: 0.3,
+      max_tokens: 3500
+    };
 
-    // OpenAI API 호출
-    const apiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Netlify.env.get('OPENAI_API_KEY')}`
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: requestData.messages,
-        temperature: 0.3,
-        max_tokens: 3500
-      })
-    });
-
-    // API 응답이 실패인 경우
-    if (!apiResponse.ok) {
-      const errorData = await apiResponse.text();
-      console.error('OpenAI API Error:', errorData); // 디버깅용 로그
-      throw new Error(`OpenAI API error: ${errorData}`);
+    // 3. API 키 확인
+    const apiKey = Netlify.env.get('OPENAI_API_KEY');
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'API key not configured' }), {
+        status: 500,
+        headers: corsHeaders
+      });
     }
 
-    const data = await apiResponse.json();
-    console.log('OpenAI Response:', data); // 디버깅용 로그
+    // 4. OpenAI API 호출
+    try {
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(apiRequestBody)
+      });
 
-    return new Response(JSON.stringify(data), { 
-      status: 200, 
-      headers: corsHeaders 
-    });
+      // 5. API 응답 처리
+      if (!openaiResponse.ok) {
+        const errorData = await openaiResponse.text();
+        throw new Error(`OpenAI API error: ${errorData}`);
+      }
+
+      const data = await openaiResponse.json();
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (fetchError) {
+      return new Response(JSON.stringify({
+        error: 'OpenAI API request failed',
+        details: fetchError.message
+      }), {
+        status: 502,
+        headers: corsHeaders
+      });
+    }
 
   } catch (error) {
-    console.error('Detailed error:', error); // 디버깅용 로그
-
     return new Response(JSON.stringify({
-      error: true,
-      message: error.message || 'Internal server error',
-      details: error.toString()
+      error: 'Request processing failed',
+      details: error.message
     }), {
       status: 500,
       headers: corsHeaders
